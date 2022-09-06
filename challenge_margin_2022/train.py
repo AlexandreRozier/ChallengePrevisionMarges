@@ -39,6 +39,8 @@ class DataModule(LightningDataModule):
 
         self.std_scaler = StandardScaler()
 
+        # INPUT: prev, weather, calendar variables (centered !)
+        # OUTPUT: Not centered FCs ([0,1])
         self.x_train = torch.from_numpy(self.std_scaler.fit_transform(self.df_train.drop(columns=[self.label,'obs','date_lancement','pi','date_cible']))).float()
         self.x_test = torch.from_numpy(self.std_scaler.transform(self.df_test.drop(columns=[self.label,'obs','date_lancement','pi','date_cible']))).float()
         self.x_val = torch.from_numpy(self.std_scaler.transform(self.df_val.drop(columns=[self.label,'obs','date_lancement','pi','date_cible']))).float()
@@ -64,6 +66,7 @@ class DataModule(LightningDataModule):
         test_split = TensorDataset(self.x_test, self.y_test)
         return DataLoader(test_split,num_workers=CPU_NUMBER)
     
+    # Not working (TODO fix)
     def predict_dataloader(self):
         x_dataset = TensorDataset(self.x_test)[0]
         return DataLoader(x_dataset,num_workers=1)
@@ -155,7 +158,7 @@ def main(obs_type: str = None, num_samples:int = 10,max_concurrent_trials:int=10
     print(df)
   
     config = {
-        "input_dim": 38,
+        "input_dim": 37,
         "layer_1": tune.choice([2, 4, 8,16]),
         "lr": tune.loguniform(1e-4, 1e-1),
         "dropout_rate": tune.uniform(0.0,0.4),
