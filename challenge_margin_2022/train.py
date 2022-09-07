@@ -26,7 +26,7 @@ class DataModule(LightningDataModule):
         self.label = label
         
         self.batch_size=batch_size
-
+        self.cols_to_drop = [self.label,'obs','prev','obs_fc','error_fc','date_lancement','pi','date_cible']
     def prepare_data(self):
         # download, split, etc...
         # only called on 1 GPU/TPU in distributed
@@ -41,9 +41,9 @@ class DataModule(LightningDataModule):
 
         # INPUT: prev, weather, calendar variables (centered !)
         # OUTPUT: Not centered FCs ([0,1])
-        self.x_train = torch.from_numpy(self.std_scaler.fit_transform(self.df_train.drop(columns=[self.label,'obs','date_lancement','pi','date_cible']))).float()
-        self.x_test = torch.from_numpy(self.std_scaler.transform(self.df_test.drop(columns=[self.label,'obs','date_lancement','pi','date_cible']))).float()
-        self.x_val = torch.from_numpy(self.std_scaler.transform(self.df_val.drop(columns=[self.label,'obs','date_lancement','pi','date_cible']))).float()
+        self.x_train = torch.from_numpy(self.std_scaler.fit_transform(self.df_train.drop(columns=self.cols_to_drop))).float()
+        self.x_test = torch.from_numpy(self.std_scaler.transform(self.df_test.drop(columns=self.cols_to_drop))).float()
+        self.x_val = torch.from_numpy(self.std_scaler.transform(self.df_val.drop(columns=self.cols_to_drop))).float()
         self.y_train = torch.from_numpy(self.df_train[self.label].values).float()
         self.y_test = torch.from_numpy(self.df_test[self.label].values).float()
         self.y_val = torch.from_numpy(self.df_val[self.label].values).float()
@@ -146,7 +146,7 @@ def train_with_config(config, df=None):
                                              on="validation_end")])
 
         
-        trainer.fit(model, datamodule=DataModule(df, label='fc', batch_size=config['batch_size']))
+        trainer.fit(model, datamodule=DataModule(df, label='error_fc', batch_size=config['batch_size']))
         return trainer
 
 
