@@ -17,6 +17,7 @@ import typer
 
 ROOT_DIR = Path(__file__).parent.resolve()
 CPU_NUMBER = os.cpu_count()
+LABEL_NAME = "error_fc"
 class DataModule(LightningDataModule):
 
     def __init__(self,df:pd.DataFrame, label:str,batch_size:int):
@@ -26,7 +27,7 @@ class DataModule(LightningDataModule):
         self.label = label
         
         self.batch_size=batch_size
-        self.cols_to_drop = [self.label,'obs','prev','obs_fc','error_fc','date_lancement','pi','date_cible']
+        self.cols_to_drop = [self.label,'obs','prev','obs_fc','date_lancement','pi','date_cible']
     def prepare_data(self):
         # download, split, etc...
         # only called on 1 GPU/TPU in distributed
@@ -146,7 +147,7 @@ def train_with_config(config, df=None):
                                              on="validation_end")])
 
         
-        trainer.fit(model, datamodule=DataModule(df, label='error_fc', batch_size=config['batch_size']))
+        trainer.fit(model, datamodule=DataModule(df, label=LABEL_NAME, batch_size=config['batch_size']))
         return trainer
 
 
@@ -155,10 +156,14 @@ def main(obs_type: str = None, num_samples:int = 10,max_concurrent_trials:int=10
     
     
     df = pd.read_hdf(f'./features/{obs_type}.hdf')
+    dm = DataModule(df, LABEL_NAME,32)
+    dm.prepare_data()
+    input_dim = dm.x_train.size()[1]
+    print(input_dim)
     print(df)
   
     config = {
-        "input_dim": 37,
+        "input_dim": input_dim,
         "layer_1": tune.choice([2, 4, 8,16]),
         "lr": tune.loguniform(1e-4, 1e-1),
         "dropout_rate": tune.uniform(0.0,0.4),
