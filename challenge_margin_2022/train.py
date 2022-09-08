@@ -1,4 +1,6 @@
 from pathlib import Path
+from random import random
+import numpy as np
 import pandas as pd
 from pytorch_lightning import LightningDataModule
 from sklearn.model_selection import train_test_split
@@ -14,6 +16,9 @@ import os
 from ray.tune.schedulers import ASHAScheduler
 
 import typer
+
+torch.manual_seed(666)
+
 
 ROOT_DIR = Path(__file__).parent.resolve()
 CPU_NUMBER = os.cpu_count()
@@ -135,6 +140,10 @@ def indicator(e):
     return 1 * torch.gt(e, 0) 
 
 def train_with_config(config, df=None):
+        # config["seed"] is set deterministically, but differs between training runs
+        random.seed(config["seed"])
+        np.random.seed(config["seed"])
+        torch.manual_seed(config["seed"])
         model = Regressor(config)
         trainer = pl.Trainer(
             max_epochs=config['epochs'],
@@ -153,7 +162,9 @@ def train_with_config(config, df=None):
 
 def main(obs_type: str = None, num_samples:int = 10,max_concurrent_trials:int=10, cpus_per_trial:int=1, gpus_per_trial:int=0):
     
-    
+    # Set seed for the search algorithms/schedulers
+    random.seed(666)
+    np.random.seed(666)
     
     df = pd.read_hdf(f'./features/{obs_type}.hdf')
     dm = DataModule(df, LABEL_NAME,32)
@@ -164,6 +175,7 @@ def main(obs_type: str = None, num_samples:int = 10,max_concurrent_trials:int=10
   
     config = {
         "input_dim": input_dim,
+        "seed": tune.randint(0, 10000),
         "layer_1": tune.choice([2, 4, 8,16]),
         "lr": tune.loguniform(1e-4, 1e-1),
         "dropout_rate": tune.uniform(0.0,0.4),
@@ -173,12 +185,13 @@ def main(obs_type: str = None, num_samples:int = 10,max_concurrent_trials:int=10
     scheduler = ASHAScheduler(
         metric='val/loss',
         mode="min",
-        grace_period=1,
+        grace_period=1
     )
     trainable = tune.with_parameters(
         train_with_config,  df=df)
     tune.run(
         trainable,
+        
         scheduler=scheduler,
         resources_per_trial={
             "cpu": cpus_per_trial,
@@ -187,6 +200,7 @@ def main(obs_type: str = None, num_samples:int = 10,max_concurrent_trials:int=10
         config=config,
         num_samples=num_samples,
         max_concurrent_trials= max_concurrent_trials,
+        
         name=ROOT_DIR / 'ray' / obs_type)
 
 if __name__ == "__main__":
