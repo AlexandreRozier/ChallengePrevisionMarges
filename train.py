@@ -1,5 +1,6 @@
+import json
 from pathlib import Path
-from random import random
+import random
 import numpy as np
 import pandas as pd
 from pytorch_lightning import LightningDataModule
@@ -14,9 +15,9 @@ from ray import tune
 from ray.tune.integration.pytorch_lightning import TuneReportCheckpointCallback
 import os
 from ray.tune.schedulers import ASHAScheduler
-
+from ray import air, tune
 import typer
-
+from ray.tune.result_grid import ResultGrid
 torch.manual_seed(666)
 
 
@@ -40,7 +41,7 @@ class DataModule(LightningDataModule):
         
         df_2016_2019 = self.df[self.df.date_cible.dt.year < 2020]
         
-        self.df_train, self.df_val = train_test_split(df_2016_2019, test_size=0.33)
+        self.df_train, self.df_val = train_test_split(df_2016_2019, test_size=0.33, random_state=42)
         self.df_test = self.df[self.df.date_cible.dt.year == 2020]
 
         self.std_scaler = StandardScaler()
@@ -148,9 +149,9 @@ def train_with_config(config, df=None):
         trainer = pl.Trainer(
             max_epochs=config['epochs'],
             accelerator='cpu',
-            enable_progress_bar=False,
             devices=1,
-            enable_checkpointing=True,
+            enable_progress_bar=False,
+            enable_checkpointing=False,
             callbacks=[
                 TuneReportCheckpointCallback(metrics="val/loss", 
                                              on="validation_end")])
@@ -159,6 +160,17 @@ def train_with_config(config, df=None):
         trainer.fit(model, datamodule=DataModule(df, label=LABEL_NAME, batch_size=config['batch_size']))
         return trainer
 
+
+def write_best_model_metrics(obs_type, results:ResultGrid):
+    best_result = results.get_best_result()
+    metrics = {
+        "val":{   
+            "loss":best_result.metrics['val/loss']
+        }
+    }
+    metrics_dir = Path(f'./metrics/{obs_type}')
+    metrics_dir.mkdir(exist_ok=True, parents=True)
+    json.dump(metrics, (metrics_dir/ "metrics.json").open('w'))
 
 def main(obs_type: str = None, num_samples:int = 10,max_concurrent_trials:int=10, cpus_per_trial:int=1, gpus_per_trial:int=0):
     
@@ -173,7 +185,7 @@ def main(obs_type: str = None, num_samples:int = 10,max_concurrent_trials:int=10
     print(input_dim)
     print(df)
   
-    config = {
+    param_space = {
         "input_dim": input_dim,
         "seed": tune.randint(0, 10000),
         "layer_1": tune.choice([2, 4, 8,16]),
@@ -183,25 +195,32 @@ def main(obs_type: str = None, num_samples:int = 10,max_concurrent_trials:int=10
         "epochs": tune.choice(range(1,10)),
     }
     scheduler = ASHAScheduler(
-        metric='val/loss',
-        mode="min",
-        grace_period=1
+        
+        grace_period=1,
+        #max_t=
     )
-    trainable = tune.with_parameters(
-        train_with_config,  df=df)
-    tune.run(
+    trainable_w_params = tune.with_parameters(train_with_config,  df=df)
+    trainable = tune.with_resources(trainable_w_params,resources={"cpu": cpus_per_trial, "gpu": gpus_per_trial})
+    
+    tuner = tune.Tuner(
         trainable,
         
-        scheduler=scheduler,
-        resources_per_trial={
-            "cpu": cpus_per_trial,
-            "gpu": gpus_per_trial
-        },
-        config=config,
-        num_samples=num_samples,
-        max_concurrent_trials= max_concurrent_trials,
-        
-        name=ROOT_DIR / 'ray' / obs_type)
-
+        tune_config=tune.TuneConfig(
+            metric="val/loss",
+            mode="min",
+            scheduler=scheduler,
+            num_samples=num_samples,
+            max_concurrent_trials=max_concurrent_trials,
+            time_budget_s=20*60 #20 min
+        ),
+        run_config=air.RunConfig(
+            local_dir=ROOT_DIR / 'ray' / obs_type ,
+            name=obs_type
+        ),
+        param_space=param_space)
+    results = tuner.fit()
+    write_best_model_metrics(obs_type, results)
+    return 
+    
 if __name__ == "__main__":
     typer.run(main)

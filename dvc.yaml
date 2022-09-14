@@ -1,0 +1,61 @@
+stages:
+  features:
+    cmd: python features.py
+    deps:
+    - features.py
+    outs:
+    - features/
+
+  train_pv:
+    cmd: python train.py --num-samples 20 --obs-type photovoltaique --max-concurrent-trials 10
+
+    deps:
+    - train.py
+    - features/photovoltaique.hdf
+
+    outs:
+    - ray/photovoltaique
+    metrics:
+      - metrics/photovoltaique/metrics.json:
+          cache: false
+  
+  train_eol:
+    cmd: python train.py --num-samples 20 --obs-type eolien --max-concurrent-trials 10
+    deps:
+    - train.py
+    - features/eolien.hdf
+
+    outs:
+    - ray/eolien
+    metrics:
+      - metrics/eolien/metrics.json:
+          cache: false
+  
+  train_conso:
+    cmd: python train.py --num-samples 20 --obs-type consommation --max-concurrent-trials 10
+    deps:
+    - train.py
+    - features/consommation.hdf
+    outs:
+    - ray/consommation
+    metrics:
+      - metrics/consommation/metrics.json:
+          cache: false
+
+  train_conso_res:
+    cmd: python train.py --num-samples 20 --obs-type consommation_residuelle --max-concurrent-trials 10
+    deps:
+    - train.py
+    - features/consommation_residuelle.hdf
+    outs:
+    - ray/consommation_residuelle
+    metrics:
+      - metrics/consommation_residuelle/metrics.json:
+          cache: false
+          
+  write_submission:
+    cmd: python submit.py
+    deps:
+    - ray/
+    outs:
+    - submissions/

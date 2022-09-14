@@ -1,6 +1,8 @@
+/features
 **/submissions/
 **/train_with_*/
 **/lightning_logs/
 **/features/
 **/data_challenge/
 **/__pycache__/
+/submissions
