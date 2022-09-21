@@ -1,20 +1,22 @@
 import json
+import math
 from pathlib import Path
 import random
 import numpy as np
 import pandas as pd
 from pytorch_lightning import LightningDataModule
+from pytorch_lightning.loggers import TensorBoardLogger
+from ray.tune.schedulers import ASHAScheduler
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 import torch
-from torch.utils.data import TensorDataset, DataLoader, Dataset
+from torch.utils.data import TensorDataset, DataLoader
 
 import torch
 import pytorch_lightning as pl
 from ray import tune
-from ray.tune.integration.pytorch_lightning import TuneReportCheckpointCallback
+from ray.tune.integration.pytorch_lightning import TuneReportCallback, TuneReportCheckpointCallback
 import os
-from ray.tune.schedulers import ASHAScheduler
 from ray import air, tune
 import typer
 from ray.tune.result_grid import ResultGrid
@@ -63,20 +65,20 @@ class DataModule(LightningDataModule):
 
     def train_dataloader(self):
         train_split = TensorDataset(self.x_train, self.y_train)
-        return DataLoader(train_split, shuffle=True, batch_size=self.batch_size,num_workers=CPU_NUMBER)
+        return DataLoader(train_split, shuffle=True, batch_size=self.batch_size)
     def val_dataloader(self):
         val_split = TensorDataset(self.x_val, self.y_val)
-        return DataLoader(val_split,num_workers=CPU_NUMBER)
+        return DataLoader(val_split)
     
-    # Useless
-    def test_dataloader(self):
-        test_split = TensorDataset(self.x_test, self.y_test)
-        return DataLoader(test_split,num_workers=CPU_NUMBER)
+    # # Useless
+    # def test_dataloader(self):
+    #     test_split = TensorDataset(self.x_test, self.y_test)
+    #     return DataLoader(test_split)
     
-    # Not working (TODO fix)
-    def predict_dataloader(self):
-        x_dataset = TensorDataset(self.x_test)[0]
-        return DataLoader(x_dataset,num_workers=1)
+    # # Not working (TODO fix)
+    # def predict_dataloader(self):
+    #     x_dataset = TensorDataset(self.x_test)[0]
+    #     return DataLoader(x_dataset)
 
 
 
@@ -110,19 +112,15 @@ class Regressor(pl.LightningModule):
     def training_step(self, train_batch, batch_idx):
         x, y = train_batch    
         y_hat = self.forward(x)
-        
         loss = self.custom_quantile_loss(y_hat, y)
         self.log("train/loss", loss, on_step=False, on_epoch=True)
-        
         return loss
     
     def validation_step(self, val_batch, batch_idx):
         x, y = val_batch
         y_hat = self.forward(x)
         loss = self.custom_quantile_loss(y_hat, y)
-
         self.log('val/loss', loss,on_step=False, on_epoch=True)
-
         return loss
     
 
@@ -158,7 +156,6 @@ def train_with_config(config, df=None):
 
         
         trainer.fit(model, datamodule=DataModule(df, label=LABEL_NAME, batch_size=config['batch_size']))
-        return trainer
 
 
 def write_best_model_metrics(obs_type, results:ResultGrid):
@@ -173,6 +170,7 @@ def write_best_model_metrics(obs_type, results:ResultGrid):
     json.dump(metrics, (metrics_dir/ "metrics.json").open('w'))
 
 def main(obs_type: str = None, num_samples:int = 10,max_concurrent_trials:int=10, cpus_per_trial:int=1, gpus_per_trial:int=0):
+    
     
     # Set seed for the search algorithms/schedulers
     random.seed(666)
@@ -208,13 +206,13 @@ def main(obs_type: str = None, num_samples:int = 10,max_concurrent_trials:int=10
         tune_config=tune.TuneConfig(
             metric="val/loss",
             mode="min",
-            scheduler=scheduler,
             num_samples=num_samples,
             max_concurrent_trials=max_concurrent_trials,
-            time_budget_s=20*60 #20 min
+            scheduler=scheduler,
+            #time_budget_s=5*60 #20 min
         ),
         run_config=air.RunConfig(
-            local_dir=ROOT_DIR / 'ray' / obs_type ,
+            local_dir=ROOT_DIR / 'ray' ,
             name=obs_type
         ),
         param_space=param_space)
@@ -222,5 +220,8 @@ def main(obs_type: str = None, num_samples:int = 10,max_concurrent_trials:int=10
     write_best_model_metrics(obs_type, results)
     return 
     
+
+    
+
 if __name__ == "__main__":
     typer.run(main)

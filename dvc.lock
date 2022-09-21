@@ -4,94 +4,94 @@ stages:
     cmd: python features.py
     deps:
     - path: features.py
-      md5: 9f8bf673473b5960b31576aa4d614470
-      size: 7500
+      md5: 59dd867de6bb4caa89d1d008fe186eb0
+      size: 7165
     outs:
     - path: features/
-      md5: 03be9736cf5e9aa60d1cfb43d3bf3f3f.dir
+      md5: 60eeb3b846b711ac3209e60e58cedb7b.dir
       size: 243285344
       nfiles: 4
   train_pv:
-    cmd: python train.py --num-samples 5 --obs-type photovoltaique --max-concurrent-trials
+    cmd: python train.py --num-samples 20 --obs-type photovoltaique --max-concurrent-trials
       10
     deps:
     - path: features/photovoltaique.hdf
-      md5: 5d6ae1025043ef11d0a71a9f13c7f13f
+      md5: 29824e0dbb36289b1fa7f35d91abedf3
       size: 60176232
     - path: train.py
-      md5: 3d63bd87db585b4257cb009884e888bb
-      size: 8201
+      md5: 12f27109a41969e0782e6c9ed6e515be
+      size: 7856
     outs:
     - path: metrics/photovoltaique/metrics.json
-      md5: 5eada4aaebf76eb15390f9995c31e893
+      md5: b27ce1e047987712f4e542e34bf5edd2
       size: 39
     - path: ray/photovoltaique
-      md5: 511e84579e28d3af3a32d2e70dedb576.dir
-      size: 58340882
-      nfiles: 60
+      md5: ba820916e58d3dde7c3f390efb2b06bf.dir
+      size: 60417583
+      nfiles: 324
   train_conso:
-    cmd: python train.py --num-samples 5 --obs-type consommation --max-concurrent-trials
+    cmd: python train.py --num-samples 20 --obs-type consommation --max-concurrent-trials
       10
     deps:
     - path: features/consommation.hdf
-      md5: e077f7812d086c9d1ff71b0e7dc1330a
+      md5: 40bcefffc15ccde9bc1fc41c3c109bde
       size: 61466440
     - path: train.py
-      md5: 3d63bd87db585b4257cb009884e888bb
-      size: 8201
+      md5: 12f27109a41969e0782e6c9ed6e515be
+      size: 7856
     outs:
     - path: metrics/consommation/metrics.json
-      md5: 291eb7142ca6e2a6eb05d853461f9f6d
+      md5: 4954e82276a9739e4b16dc9e59eab4d4
       size: 39
     - path: ray/consommation
-      md5: ab0663c7eed245b2439614fe52136735.dir
-      size: 59663714
-      nfiles: 65
+      md5: 7776ad81f91c5571d115a546a5a5ff01.dir
+      size: 61497706
+      nfiles: 303
   train_eol:
     cmd: python train.py --num-samples 20 --obs-type eolien --max-concurrent-trials
       10
     deps:
     - path: features/eolien.hdf
-      md5: 8a256ff0c4315ae85e0ca4d28f82b14a
+      md5: 52371d5c39198814adada96ede634797
       size: 60176232
     - path: train.py
-      md5: 16753973f04a52382d38e654a32142bc
-      size: 7917
+      md5: 12f27109a41969e0782e6c9ed6e515be
+      size: 7856
     outs:
     - path: metrics/eolien/metrics.json
-      md5: ed91e9733f92091a15115d56b4be5e19
+      md5: fe45ea01dd4688434ff57959101730bb
       size: 38
     - path: ray/eolien
-      md5: 4febc03a92d6e71ab80ec08177f8f197.dir
-      size: 59327827
-      nfiles: 208
+      md5: 8d6a3540ecbe80fce681dbe3a135a84e.dir
+      size: 60307623
+      nfiles: 306
   train_conso_res:
-    cmd: python train.py --num-samples 5 --obs-type consommation_residuelle --max-concurrent-trials
+    cmd: python train.py --num-samples 20 --obs-type consommation_residuelle --max-concurrent-trials
       10
     deps:
     - path: features/consommation_residuelle.hdf
-      md5: fd4bce05a35c8eaf39e08d4cdfda4cfe
+      md5: b6c71c7f7092f5469aa26c00faa9e631
       size: 61466440
     - path: train.py
-      md5: 4e98ce300d18a98e840e93e2d5d4d058
-      size: 7813
+      md5: 12f27109a41969e0782e6c9ed6e515be
+      size: 7856
     outs:
     - path: metrics/consommation_residuelle/metrics.json
-      md5: 62e07f6bd166d596c293fe5eb37cac88
+      md5: 0fc7d601bc44734e6410b5df8132adfb
       size: 40
     - path: ray/consommation_residuelle
-      md5: 09fb446df2634a86f6d8129ea9672a50.dir
-      size: 472926
-      nfiles: 65
+      md5: 402b47468590e07fa4397f2ff44f14c6.dir
+      size: 61481097
+      nfiles: 300
   write_submission:
     cmd: python submit.py
     deps:
     - path: ray/
-      md5: e51947b2cc8867a82731d9a2d2fce97f.dir
-      size: 2314413
-      nfiles: 253
+      md5: 0007635fea431cfa6e3eb7ac7d95fd8f.dir
+      size: 243704072
+      nfiles: 1234
     outs:
     - path: submissions/
-      md5: 451b178d7c0754adfa260f83b4bc7720.dir
-      size: 271173930
+      md5: 2d1e321fa730f372f8c9013ada7be111.dir
+      size: 279432402
       nfiles: 1
